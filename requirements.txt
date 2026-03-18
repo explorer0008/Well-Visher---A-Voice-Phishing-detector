@@ -1,0 +1,17 @@
+# Core STT engines
+faster-whisper
+whisperx          # pip install whisperx (requires ffmpeg)
+vosk              # pip install vosk  — also download a model:
+                  # https://alphacephei.com/vosk/models  (e.g. vosk-model-en-us-0.22)
+
+# NLP / classification
+transformers
+torch
+
+# Audio
+sounddevice
+scipy
+numpy
+
+# Misc
+tqdm
