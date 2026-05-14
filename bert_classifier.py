@@ -1,26 +1,19 @@
-"""
-BERT Vishing Classifier - Final Version
-- Vishing detected only if confidence > 0.70
-- Risk levels: LOW < 0.40 | MEDIUM 0.40-0.70 | HIGH > 0.70
-- No keywords = capped at 0.30 (cannot be vishing)
-- Safe context words reduce the score
-- ZSL only counts if confidence exceeds per-label threshold
-"""
-
 from transformers import pipeline
 from typing import List, Dict, Any
-
-# ── Vishing keywords ─────────────────────────────────────────────
 VISHING_KEYWORDS = {
     "high": [
         "otp", "one-time password", "one time password", "pin number",
+        "atm", "atm machine", "cash machine", "withdraw cash",
         "cvv", "account number", "social security", "ssn",
         "verify your identity", "account is suspended", "account has been suspended",
         "immediate action", "legal action", "username", "password", "arrest warrant", "irs",
         "microsoft support", "refund has been approved", "gift card",
         "wire transfer", "bitcoin", "unauthorized transaction",
         "your card has been", "blocked your account", "confirm your details",
-        "give me your password", "remote access"
+        "give me your password", "remote access",
+        "processing fee", "pay a small", "claim your prize", "won", "lucky draw",
+        "lottery", "congratulations", "you have won", "prize money", "cash prize",
+        "send money", "transfer funds", "deposit fee", "security deposit"
     ],
     "medium": [
         "credit card", "urgent", "act now", "prize", "winner", "claim your",
@@ -31,8 +24,6 @@ VISHING_KEYWORDS = {
         "bank", "password", "confirm", "government", "security alert"
     ]
 }
-
-# ── Safe words — reduce false positives ─────────────────────────
 SAFE_INDICATORS = [
     "appointment", "reminder", "dentist", "doctor", "delivery", "shipment",
     "order", "logistics", "reschedule", "office", "calling to remind",
@@ -41,7 +32,6 @@ SAFE_INDICATORS = [
     "hi there", "hello", "just checking in", "hope you are well"
 ]
 
-# ── ZSL risk labels with minimum confidence thresholds ──────────
 HIGH_RISK_ZSL_LABELS = {
     "urgent financial request":               0.60,
     "bank account verification":              0.60,
@@ -64,7 +54,16 @@ class VishingBERTClassifier:
             tokenizer=model_name,
             device=-1
         )
-        print("  BERT classifier ready ✅")
+        print("  BERT classifier ready ")
+
+    CRITICAL_KEYWORDS = {
+        "otp", "one-time password", "one time password", "pin number",
+        "atm", "atm machine", "cash machine", "withdraw cash",
+        "cvv", "account number",
+        "processing fee", "pay a small", "claim your prize", "won", "lucky draw",
+        "lottery", "congratulations", "you have won", "prize money", "cash prize",
+        "send money", "transfer funds", "deposit fee", "security deposit"
+    }
 
     def _keyword_risk_score(self, text: str) -> Dict[str, Any]:
         text_lower = text.lower()
@@ -73,12 +72,18 @@ class VishingBERTClassifier:
             for kw in keywords:
                 if kw in text_lower:
                     hits[level].append(kw)
+
         score = (
-            min(len(hits["high"]), 3) * 0.35 +
-            min(len(hits["medium"]), 3) * 0.10 +
-            min(len(hits["low"]), 3) * 0.03
+            min(len(hits["high"]), 3) * 0.40 +
+            min(len(hits["medium"]), 3) * 0.12 +
+            min(len(hits["low"]), 3) * 0.04
         )
-        return {"score": min(score, 1.0), "hits": hits}
+
+        critical_bonus = 0.0
+        if any(kw in text_lower for kw in self.CRITICAL_KEYWORDS):
+            critical_bonus = 0.10
+
+        return {"score": min(score + critical_bonus, 1.0), "hits": hits}
 
     def _safe_context_penalty(self, text: str) -> float:
         text_lower = text.lower()
@@ -111,41 +116,29 @@ class VishingBERTClassifier:
         context_labels = context_labels or []
         zsl_scores = zsl_scores or {}
 
-        # ── 1. Keyword score (PRIMARY, 50%) ──────────────────
         kw_result = self._keyword_risk_score(transcript)
         kw_score = kw_result["score"]
 
-        # ── 2. ZSL score (threshold-filtered, 30%) ───────────
         zsl_score = self._zsl_risk_score(context_labels, zsl_scores)
 
-        # ── 3. BERT sentiment (tiebreaker, 20%) ──────────────
         bert_input = self._build_input(transcript, context_labels)
         bert_result = self.nlp(bert_input, truncation=True, max_length=512)[0]
         bert_score = bert_result["score"] if bert_result["label"] == "NEGATIVE" else 1 - bert_result["score"]
 
-        # ── 4. Safe context penalty ───────────────────────────
         penalty = self._safe_context_penalty(transcript)
 
-        # ── 5. Final score ────────────────────────────────────
-        # If NO keywords matched at all → cap score at 0.30 (never vishing)
         if kw_score == 0.0 and len(kw_result["hits"]["medium"]) == 0:
             final_score = min(0.30, bert_score * 0.20)
         else:
             raw_score = (kw_score * 0.50) + (zsl_score * 0.30) + (bert_score * 0.20)
             final_score = max(0.0, raw_score - penalty)
 
-        # ── 6. Risk levels ────────────────────────────────────
-        # LOW  < 0.40
-        # MEDIUM 0.40 - 0.70
-        # HIGH > 0.70 (also triggers VISHING DETECTED)
         if final_score >= 0.70:
-            risk_level = "🔴 HIGH"
+            risk_level = " HIGH"
         elif final_score >= 0.60:
-            risk_level = "🟡 MEDIUM"
+            risk_level = "MEDIUM"
         else:
-            risk_level = "🟢 LOW"
-
-        # ── 7. Indicators ─────────────────────────────────────
+            risk_level = " LOW"
         indicators = []
         indicators.extend(kw_result["hits"]["high"][:3])
         indicators.extend([
@@ -156,15 +149,16 @@ class VishingBERTClassifier:
             indicators = ["No strong indicators found"]
 
         return {
-            "is_vishing": final_score >= 0.50,   # Only flag if > 70%
+            "is_vishing": final_score >= 0.50,
             "confidence": final_score,
             "risk_level": risk_level,
             "indicators": indicators,
+            "keyword_hits": kw_result["hits"],
             "scores": {
-                "bert": round(bert_score, 3),
+                "bert":     round(bert_score, 3),
                 "keywords": round(kw_score, 3),
-                "zsl": round(zsl_score, 3),
-                "penalty": round(penalty, 3),
-                "final": round(final_score, 3)
+                "zsl":      round(zsl_score, 3),
+                "penalty":  round(penalty, 3),
+                "final":    round(final_score, 3)
             }
         }
