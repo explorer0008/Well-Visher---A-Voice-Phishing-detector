@@ -1,18 +1,10 @@
-"""
-Accuracy Comparator - WER-based comparison across all three transcription engines
-"""
-
 import re
 from typing import Dict
-
-
 def _normalise(text: str) -> str:
     text = text.lower().strip()
     text = re.sub(r"[^\w\s]", "", text)          # remove punctuation
     text = re.sub(r"\s+", " ", text)              # collapse spaces
     return text
-
-
 def _wer(reference: str, hypothesis: str) -> Dict:
     """
     Word Error Rate calculation.
@@ -28,9 +20,6 @@ def _wer(reference: str, hypothesis: str) -> Dict:
 
     n = len(ref_words)
     m = len(hyp_words)
-
-    # DP table (edit distance with traceback info)
-    # d[i][j] = (cost, sub, del, ins)
     d = [[(0, 0, 0, 0)] * (m + 1) for _ in range(n + 1)]
     for i in range(n + 1):
         d[i][0] = (i, 0, i, 0)
@@ -70,8 +59,6 @@ def _wer(reference: str, hypothesis: str) -> Dict:
         "deletions": dels,
         "insertions": ins,
     }
-
-
 def _grade(accuracy: float) -> tuple:
     """Return (grade_label, hex_color) based on accuracy."""
     if accuracy >= 85:
@@ -82,8 +69,6 @@ def _grade(accuracy: float) -> tuple:
         return "Fair 🟠", "#fb923c"
     else:
         return "Poor 🔴", "#f87171"
-
-
 def _similarity(t1: str, t2: str) -> float:
     """
     Word-overlap similarity between two transcripts (Jaccard on word sets).
