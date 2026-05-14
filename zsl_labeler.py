@@ -1,7 +1,3 @@
-"""
-ZSL Labeler - Zero-Shot Learning Partial Labeling
-"""
-
 from transformers import pipeline
 from typing import List, Tuple
 
@@ -15,7 +11,7 @@ class ZSLLabeler:
             model=ZSL_MODEL,
             device=-1
         )
-        print("  ZSL model ready ✅")
+        print("  ZSL model ready ")
 
     def label(
         self,
@@ -24,9 +20,7 @@ class ZSLLabeler:
         multi_label: bool = True,
         threshold: float = 0.15
     ) -> List[Tuple[str, float]]:
-        """
-        Partially label text using zero-shot classification.
-        """
+       
         if not text or text == "[No speech detected]":
             return [("no speech", 1.0)]
 
