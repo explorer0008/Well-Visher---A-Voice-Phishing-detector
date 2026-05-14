@@ -1,23 +1,16 @@
-"""
-Transcriber - Multi-engine speech-to-text
-Engines: Faster-Whisper (primary), WhisperX, Vosk
-"""
-
-
 import os
-os.environ["PATH"] += r";C:\Users\sharm\Downloads\ffmpeg-master-latest-win64-gpl-shared\ffmpeg-master-latest-win64-gpl-shared\bin"
+os.environ["PATH"] += "
 MODEL_SIZE = "base"
 _whisper_model = None
 
 
-# ── Faster-Whisper ────────────────────────────────────────────────
 def _get_whisper_model():
     global _whisper_model
     if _whisper_model is None:
         from faster_whisper import WhisperModel
         print(f"  Loading Faster-Whisper model ({MODEL_SIZE})...")
         _whisper_model = WhisperModel(MODEL_SIZE, device="cpu", compute_type="int8")
-        print("  Faster-Whisper loaded ✅")
+        print("  Faster-Whisper loaded ")
     return _whisper_model
 
 
@@ -34,7 +27,6 @@ def transcribe_audio(audio_path: str) -> str:
     return transcript if transcript else "[No speech detected]"
 
 
-# ── WhisperX ──────────────────────────────────────────────────────
 def transcribe_whisperx(audio_path: str) -> str:
     """Transcription using WhisperX."""
     if not os.path.exists(audio_path):
@@ -53,7 +45,6 @@ def transcribe_whisperx(audio_path: str) -> str:
         return f"[WhisperX error: {str(e)}]"
 
 
-# ── Vosk ──────────────────────────────────────────────────────────
 def transcribe_vosk(audio_path: str, model_path: str = "vosk-model-en-us-0.22") -> str:
     """Transcription using Vosk (offline, fast)."""
     if not os.path.exists(audio_path):
