@@ -20,6 +20,7 @@ def _wer(reference: str, hypothesis: str) -> Dict:
 
     n = len(ref_words)
     m = len(hyp_words)
+
     d = [[(0, 0, 0, 0)] * (m + 1) for _ in range(n + 1)]
     for i in range(n + 1):
         d[i][0] = (i, 0, i, 0)
@@ -59,8 +60,10 @@ def _wer(reference: str, hypothesis: str) -> Dict:
         "deletions": dels,
         "insertions": ins,
     }
+
+
 def _grade(accuracy: float) -> tuple:
-    """Return (grade_label, hex_color) based on accuracy."""
+   
     if accuracy >= 85:
         return "Excellent ✅", "#4ade80"
     elif accuracy >= 65:
@@ -69,11 +72,10 @@ def _grade(accuracy: float) -> tuple:
         return "Fair 🟠", "#fb923c"
     else:
         return "Poor 🔴", "#f87171"
+
+
 def _similarity(t1: str, t2: str) -> float:
-    """
-    Word-overlap similarity between two transcripts (Jaccard on word sets).
-    Returns a value in [0, 1].
-    """
+    
     w1 = set(_normalise(t1).split())
     w2 = set(_normalise(t2).split())
     if not w1 and not w2:
@@ -89,18 +91,7 @@ def compare_transcripts(
     whisperx_text: str,
     vosk_text: str,
 ) -> Dict:
-    """
-    Compare three engine transcripts against a reference string.
-
-    Args:
-        reference    : The ground-truth text typed by the user.
-        whisper_text : Output of Faster-Whisper.
-        whisperx_text: Output of WhisperX.
-        vosk_text    : Output of Vosk.
-
-    Returns a rich dict with per-engine stats, cross-engine similarity,
-    and an overall consensus accuracy.
-    """
+    
     ref_norm = _normalise(reference)
 
     engines = {
@@ -111,7 +102,7 @@ def compare_transcripts(
 
     results = {}
     for name, text in engines.items():
-        # Check if engine returned an error / not-installed message
+      
         is_error = text.startswith("[")
         if is_error:
             results[name] = {
@@ -142,8 +133,6 @@ def compare_transcripts(
                 "insertions": stats["insertions"],
                 "grade": (grade, color),
             }
-
-    # ── Cross-engine similarity ────────────────────────────────────
     available_texts = {k: v["transcript"] for k, v in results.items() if v["available"]}
     similarity_scores = {}
     engine_names = list(available_texts.keys())
@@ -151,14 +140,9 @@ def compare_transcripts(
         for b in engine_names[i + 1:]:
             key = f"{a} ↔ {b}"
             similarity_scores[key] = round(_similarity(available_texts[a], available_texts[b]) * 100, 1)
-
-    # ── Consensus accuracy (average of available engines) ─────────
     valid_accuracies = [v["accuracy"] for v in results.values() if v["accuracy"] is not None]
     consensus = round(sum(valid_accuracies) / len(valid_accuracies), 2) if valid_accuracies else None
     consensus_grade, consensus_color = _grade(consensus) if consensus is not None else ("N/A", "#94a3b8")
-
-    # ── High-agreement flag ───────────────────────────────────────
-    # If all cross-engine similarities are > 70%, engines broadly agree
     high_agreement = all(s >= 70.0 for s in similarity_scores.values()) if similarity_scores else False
 
     return {
