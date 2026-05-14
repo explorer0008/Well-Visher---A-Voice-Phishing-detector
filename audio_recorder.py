@@ -5,7 +5,7 @@ import os
 SAMPLE_RATE = 16000  # Whisper works best with 16kHz
 def record_audio(duration: int = 15, filename: str = "recorded_audio.wav") -> str:
     
-    print(f"  🔴 Recording for {duration} seconds... Speak now!")
+    print(f" Recording for {duration} seconds... Speak now!")
 
     audio_data = sd.rec(
         int(duration * SAMPLE_RATE),
@@ -19,5 +19,5 @@ def record_audio(duration: int = 15, filename: str = "recorded_audio.wav") -> st
     os.makedirs("data", exist_ok=True)
     wav.write(output_path, SAMPLE_RATE, audio_data)
 
-    print(f"  ✅ Audio saved to {output_path}")
+    print(f" Audio saved to {output_path}")
     return output_path
