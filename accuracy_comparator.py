@@ -65,13 +65,13 @@ def _wer(reference: str, hypothesis: str) -> Dict:
 def _grade(accuracy: float) -> tuple:
    
     if accuracy >= 85:
-        return "Excellent ✅", "#4ade80"
+        return "Excellent ", "#4ade80"
     elif accuracy >= 65:
-        return "Good 🟡", "#fbbf24"
+        return "Good ", "#fbbf24"
     elif accuracy >= 40:
-        return "Fair 🟠", "#fb923c"
+        return "Fair ", "#fb923c"
     else:
-        return "Poor 🔴", "#f87171"
+        return "Poor ", "#f87171"
 
 
 def _similarity(t1: str, t2: str) -> float:
